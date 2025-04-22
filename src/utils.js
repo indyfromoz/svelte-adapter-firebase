@@ -1,6 +1,6 @@
-import {existsSync, readFileSync} from 'fs';
-import path from 'path';
-import process from 'process';
+import { existsSync, readFileSync } from "fs";
+import path from "path";
+import process from "process";
 
 /**
  * @typedef CloudRunRewriteConfig
@@ -31,7 +31,7 @@ import process from 'process';
  * @type {object} functions
  * @property {undefined|'nodejs14'|'nodejs16'} functions.runtime
  * @property {undefined|string} functions.source
-*/
+ */
 
 /**
  * Firebase configuration from `firebase.json`. Typed with the types required by the adapter.
@@ -48,7 +48,7 @@ import process from 'process';
  * @returns {boolean} true if param is a string
  */
 function isString(parameter) {
-	return (typeof parameter === 'string' || parameter instanceof String);
+  return typeof parameter === "string" || parameter instanceof String;
 }
 
 /**
@@ -58,46 +58,67 @@ function isString(parameter) {
  * target: string|undefined;
  */
 function extractHostingConfig(firebaseConfig, sourceRewriteMatch, target) {
-	// Force "hosting" field to be array
-	const firebaseHostingConfig = Array.isArray(firebaseConfig.hosting)
-		? firebaseConfig.hosting
-		: [{...firebaseConfig.hosting}];
+  // Force "hosting" field to be array
+  const firebaseHostingConfig = Array.isArray(firebaseConfig.hosting)
+    ? firebaseConfig.hosting
+    : [{ ...firebaseConfig.hosting }];
 
-	// Force "site" field to be included in "hosting" if more than 1 hosting site config
-	if (firebaseHostingConfig.length > 1) {
-		for (const item of firebaseHostingConfig) {
-			if (!item.site && !item.target) {
-				throw new Error('Error: Multiple "hosting" configurations found, each requires either a "site" field or "target" field, one does not. https://firebase.google.com/docs/hosting/multisites');
-			}
-		}
-	}
+  // Force "site" field to be included in "hosting" if more than 1 hosting site config
+  if (firebaseHostingConfig.length > 1) {
+    for (const item of firebaseHostingConfig) {
+      if (!item.site && !item.target) {
+        throw new Error(
+          'Error: Multiple "hosting" configurations found, each requires either a "site" field or "target" field, one does not. https://firebase.google.com/docs/hosting/multisites'
+        );
+      }
+    }
+  }
 
-	const hostingConfig = firebaseHostingConfig.length === 1
-		? firebaseHostingConfig[0]
-		: firebaseHostingConfig.find(item => (item.site === target && item.site !== undefined) || (item.target === target && item.target !== undefined));
+  const hostingConfig =
+    firebaseHostingConfig.length === 1
+      ? firebaseHostingConfig[0]
+      : firebaseHostingConfig.find(
+          (item) =>
+            (item.site === target && item.site !== undefined) ||
+            (item.target === target && item.target !== undefined)
+        );
 
-	if (!hostingConfig) {
-		if (!target) {
-			throw new Error('Error: Multiple "hosting" configurations found, but no "target" specified in "svelte.config.js" adapter config. Provide one so we can match the config correctly.');
-		}
+  if (!hostingConfig) {
+    if (!target) {
+      throw new Error(
+        'Error: Multiple "hosting" configurations found, but no "target" specified in "svelte.config.js" adapter config. Provide one so we can match the config correctly.'
+      );
+    }
 
-		const hostingConfigValues = firebaseHostingConfig.map(item => (item.target ? {target: item.target} : {site: item.site}));
-		throw new Error(`Error: Multiple "hosting" configurations found in "firebase.json" but not match found for ${target} specified in "svelte.config.js" adapter config. "hosting[].site" & "hosting[].target" values ${JSON.stringify(hostingConfigValues)}`);
-	}
+    const hostingConfigValues = firebaseHostingConfig.map((item) =>
+      item.target ? { target: item.target } : { site: item.site }
+    );
+    throw new Error(
+      `Error: Multiple "hosting" configurations found in "firebase.json" but not match found for ${target} specified in "svelte.config.js" adapter config. "hosting[].site" & "hosting[].target" values ${JSON.stringify(
+        hostingConfigValues
+      )}`
+    );
+  }
 
-	if (!isString(hostingConfig?.public)) {
-		throw new Error('Error: Required "hosting.public" field not found for hosting configuration.');
-	}
+  if (!isString(hostingConfig?.public)) {
+    throw new Error(
+      'Error: Required "hosting.public" field not found for hosting configuration.'
+    );
+  }
 
-	if (isString(hostingConfig?.public) && hostingConfig.public === '') {
-		throw new Error('Error: Required "hosting.public" field is an empty string, a directory is required.');
-	}
+  if (isString(hostingConfig?.public) && hostingConfig.public === "") {
+    throw new Error(
+      'Error: Required "hosting.public" field is an empty string, a directory is required.'
+    );
+  }
 
-	if (!Array.isArray(hostingConfig?.rewrites)) {
-		throw new TypeError(`Error: Required "hosting[].rewrites" field not found for matched hosting configuration. Specify your Cloud Function with rewrite rule matching "source":"${sourceRewriteMatch}"`);
-	}
+  if (!Array.isArray(hostingConfig?.rewrites)) {
+    throw new TypeError(
+      `Error: Required "hosting[].rewrites" field not found for matched hosting configuration. Specify your Cloud Function with rewrite rule matching "source":"${sourceRewriteMatch}"`
+    );
+  }
 
-	return hostingConfig;
+  return hostingConfig;
 }
 
 /**
@@ -114,70 +135,104 @@ function extractHostingConfig(firebaseConfig, sourceRewriteMatch, target) {
  * 	publicDir: string
  * }} Functions config with `public` dir
  */
-function parseFirebaseConfiguration({target, sourceRewriteMatch, firebaseJsonPath}) {
-	const firebaseJson = path.resolve(firebaseJsonPath);
+function parseFirebaseConfiguration({
+  target,
+  sourceRewriteMatch,
+  firebaseJsonPath,
+}) {
+  const firebaseJson = path.resolve(firebaseJsonPath);
 
-	if (!existsSync(firebaseJson)) {
-		throw new Error(`Error: The adapter requires a "firebase.json" file. "firebaseJsonPath:${firebaseJsonPath}" does not exist.`);
-	}
+  if (!existsSync(firebaseJson)) {
+    throw new Error(
+      `Error: The adapter requires a "firebase.json" file. "firebaseJsonPath:${firebaseJsonPath}" does not exist.`
+    );
+  }
 
-	/**
-	 * @type {FirebaseConfig}
-	 */
-	let firebaseConfig;
-	try {
-		firebaseConfig = JSON.parse(readFileSync(firebaseJson, 'utf8'));
-	} catch (error) {
-		throw new Error(`Error: failure while parsing ${firebaseJsonPath}. ${error.message}`);
-	}
+  /**
+   * @type {FirebaseConfig}
+   */
+  let firebaseConfig;
+  try {
+    firebaseConfig = JSON.parse(readFileSync(firebaseJson, "utf8"));
+  } catch (error) {
+    throw new Error(
+      `Error: failure while parsing ${firebaseJsonPath}. ${error.message}`
+    );
+  }
 
-	if (!firebaseConfig?.hosting) {
-		throw new Error('Error: "hosting" config missing from "firebase.json"');
-	}
+  if (!firebaseConfig?.hosting) {
+    throw new Error('Error: "hosting" config missing from "firebase.json"');
+  }
 
-	const hostingConfig = extractHostingConfig(firebaseConfig, sourceRewriteMatch, target);
+  const hostingConfig = extractHostingConfig(
+    firebaseConfig,
+    sourceRewriteMatch,
+    target
+  );
 
-	const rewriteConfig = hostingConfig.rewrites.find(item => item.source === sourceRewriteMatch && (item.function || item.run));
+  const rewriteConfig = hostingConfig.rewrites.find(
+    (item) => item.source === sourceRewriteMatch && (item.function || item.run)
+  );
 
-	if (!rewriteConfig) {
-		throw new Error(`Error: Required "hosting[].rewrites[]" does not contain a config with "source":"${sourceRewriteMatch}" and either "function":"<func_name>" or "run":{...} entries`);
-	}
+  if (!rewriteConfig) {
+    throw new Error(
+      `Error: Required "hosting[].rewrites[]" does not contain a config with "source":"${sourceRewriteMatch}" and either "function":"<func_name>" or "run":{...} entries`
+    );
+  }
 
-	if (rewriteConfig?.run && (!rewriteConfig.run.serviceId || !isString(rewriteConfig.run.serviceId))) {
-		throw new Error('Error: Required "serviceId" field not found for Cloud Run rewrite rule in "firebase.json"');
-	}
+  if (
+    rewriteConfig?.run &&
+    (!rewriteConfig.run.serviceId || !isString(rewriteConfig.run.serviceId))
+  ) {
+    throw new Error(
+      'Error: Required "serviceId" field not found for Cloud Run rewrite rule in "firebase.json"'
+    );
+  }
 
-	if (rewriteConfig?.run && !validCloudRunServiceId(rewriteConfig.run.serviceId)) {
-		throw new Error('Error: Cloud Run "serviceId" must use only lowercase alphanumeric characters and dashes cannot begin or end with a dash, and cannot be longer than 63 characters.');
-	}
+  if (
+    rewriteConfig?.run &&
+    !validCloudRunServiceId(rewriteConfig.run.serviceId)
+  ) {
+    throw new Error(
+      'Error: Cloud Run "serviceId" must use only lowercase alphanumeric characters and dashes cannot begin or end with a dash, and cannot be longer than 63 characters.'
+    );
+  }
 
-	if (rewriteConfig?.run && rewriteConfig?.run?.region && (rewriteConfig?.run?.region !== 'us-west1')) {
-		throw new Error('Error: Cloud Run "region" is invalid, it should be "use-west1".');
-	}
+  if (
+    rewriteConfig?.run &&
+    rewriteConfig?.run?.region &&
+    rewriteConfig?.run?.region !== "us-west1"
+  ) {
+    throw new Error(
+      'Error: Cloud Run "region" is invalid, it should be "use-west1".'
+    );
+  }
 
-	if (rewriteConfig?.function && !validCloudFunctionName(rewriteConfig.function)) {
-		throw new Error('Error: Cloud Function name must use only alphanumeric characters and underscores and cannot be longer than 63 characters');
-	}
+  // If function, ensure function root-level field is present. If functions is an array, gets the first entry
+  let functions;
+  if (firebaseConfig?.functions) {
+    functions = Array.isArray(firebaseConfig.functions)
+      ? firebaseConfig.functions[0]
+      : firebaseConfig.functions;
+    if (!functions || !isString(functions.source)) {
+      throw new Error(
+        'Error: Required "functions.source" or "functions[].source" field is missing from Firebase Configuration file.'
+      );
+    }
+  } else {
+    throw new Error(
+      'Error: Required "functions" field is missing from Firebase Configuration file.'
+    );
+  }
 
-	// If function, ensure function root-level field is present. If functions is an array, gets the first entry
-	let functions;
-	if (firebaseConfig?.functions) {
-		functions = Array.isArray(firebaseConfig.functions) ? firebaseConfig.functions[0] : firebaseConfig.functions;
-		if (!functions || !isString(functions.source)) {
-			throw new Error('Error: Required "functions.source" or "functions[].source" field is missing from Firebase Configuration file.');
-		}
-	} else {
-		throw new Error('Error: Required "functions" field is missing from Firebase Configuration file.');
-	}
-
-	return {
-		functions: {
-			name: rewriteConfig.function ?? rewriteConfig.run.serviceId,
-			source: path.join(path.dirname(firebaseJson), functions.source),
-			runtime: functions?.runtime,
-		},
-		publicDir: path.join(path.dirname(firebaseJson), hostingConfig.public),
-	};
+  return {
+    functions: {
+      name: rewriteConfig.function ?? rewriteConfig.run.serviceId,
+      source: path.join(path.dirname(firebaseJson), functions.source),
+      runtime: functions?.runtime,
+    },
+    publicDir: path.join(path.dirname(firebaseJson), hostingConfig.public),
+  };
 }
 
 /**
@@ -189,7 +244,7 @@ function parseFirebaseConfiguration({target, sourceRewriteMatch, firebaseJsonPat
  * @returns {boolean} `true` if valid
  */
 function validCloudRunServiceId(serviceId) {
-	return /^[a-z\d][a-z\d-]+[a-z\d]$/gm.test(serviceId) && serviceId.length < 64;
+  return /^[a-z\d][a-z\d-]+[a-z\d]$/gm.test(serviceId) && serviceId.length < 64;
 }
 
 /**
@@ -205,7 +260,7 @@ function validCloudRunServiceId(serviceId) {
  * - https://github.com/firebase/firebase-tools/blob/2dc7216a498dee2ca7e2acc33d6ba16d5647e27f/src/extractTriggers.js#L18
  */
 function validCloudFunctionName(name) {
-	return /^\w{1,63}$/.test(name);
+  return /^\w{1,63}$/.test(name);
 }
 
 /**
@@ -217,10 +272,12 @@ function validCloudFunctionName(name) {
  * 	source:string
  * }} param source and destination directory for static assets
  */
-function ensureStaticResourceDirsDiffer({source, dest}) {
-	if (source === dest) {
-		throw new Error(`Error: "firebase.json:hosting.public" field (${dest}) must be a different directory to "svelte.config.js:kit.files.assets" field (${source}).`);
-	}
+function ensureStaticResourceDirsDiffer({ source, dest }) {
+  if (source === dest) {
+    throw new Error(
+      `Error: "firebase.json:hosting.public" field (${dest}) must be a different directory to "svelte.config.js:kit.files.assets" field (${source}).`
+    );
+  }
 }
 
 /**
@@ -231,13 +288,13 @@ function ensureStaticResourceDirsDiffer({source, dest}) {
  * @returns {string} formatted message with relative dir on following newline
  */
 function logRelativeDir(message, dir) {
-	return `${message}:\n\t${path.relative(process.cwd(), dir)}`;
+  return `${message}:\n\t${path.relative(process.cwd(), dir)}`;
 }
 
 export {
-	ensureStaticResourceDirsDiffer,
-	logRelativeDir,
-	parseFirebaseConfiguration,
-	validCloudRunServiceId,
-	validCloudFunctionName,
+  ensureStaticResourceDirsDiffer,
+  logRelativeDir,
+  parseFirebaseConfiguration,
+  validCloudRunServiceId,
+  validCloudFunctionName,
 };
